@@ -1,0 +1,611 @@
+<title>Creepy Story Finder</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=Share+Tech+Mono&display=swap">
+
+<style>
+/* ── Layout: single column feed, atmospheric header ── */
+:root {
+  --bg:        #0a0608;
+  --surface:   #110d0f;
+  --border:    #2a1f22;
+  --fg:        #d4b8bc;
+  --muted:     #7a5c62;
+  --accent:    #c0392b;
+  --accent2:   #8b1a10;
+  --gold:      #c9a84c;
+  --glow:      rgba(192,57,43,0.18);
+
+  --font-display: 'UnifrakturMaguntia', cursive;
+  --font-body:    'Crimson Pro', Georgia, serif;
+  --font-mono:    'Share Tech Mono', monospace;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg:      #1a0f10;
+    --surface: #231518;
+    --border:  #3a2428;
+    --fg:      #e0ccd0;
+    --muted:   #9a7c82;
+  }
+}
+:root[data-theme="light"] {
+  --bg:      #1a0f10;
+  --surface: #231518;
+  --border:  #3a2428;
+  --fg:      #e0ccd0;
+  --muted:   #9a7c82;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 17px;
+  line-height: 1.6;
+  min-height: 100%;
+}
+
+body {
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 3rem;
+}
+
+/* ── Atmospheric background ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 40% at 50% 0%, rgba(139,26,16,0.12) 0%, transparent 70%),
+    radial-gradient(ellipse 80% 60% at 20% 100%, rgba(192,57,43,0.06) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+* { position: relative; z-index: 1; }
+
+/* ── Header ── */
+header {
+  text-align: center;
+  padding-block: 2.5rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2rem;
+}
+
+.skull { font-size: 1.4rem; opacity: 0.6; margin: 0 0.5rem; }
+
+h1 {
+  font-family: var(--font-display);
+  font-size: clamp(2.2rem, 7vw, 3.8rem);
+  color: var(--accent);
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 40px var(--glow), 0 2px 4px rgba(0,0,0,0.8);
+  line-height: 1.1;
+  margin-bottom: 0.4rem;
+}
+
+.subtitle {
+  font-size: 0.85rem;
+  color: var(--muted);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+}
+
+/* ── Controls ── */
+.controls {
+  max-width: 700px;
+  margin: 0 auto 2rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: flex-end;
+}
+
+.field { display: flex; flex-direction: column; gap: 0.3rem; flex: 1 1 160px; }
+
+label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+input, select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  padding: 0.5rem 0.7rem;
+  outline: none;
+  transition: border-color 0.2s;
+  appearance: none;
+}
+input:focus, select:focus { border-color: var(--accent); }
+
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237a5c62'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.6rem center;
+  padding-right: 1.8rem;
+  cursor: pointer;
+}
+
+.btn {
+  background: var(--accent2);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  color: #f0d0d0;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.55rem 1.2rem;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s;
+  align-self: flex-end;
+  white-space: nowrap;
+}
+.btn:hover:not(:disabled) {
+  background: var(--accent);
+  box-shadow: 0 0 16px var(--glow);
+}
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ── Subreddit chips ── */
+.presets {
+  max-width: 700px;
+  margin: 0 auto 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.preset-label {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-right: 0.2rem;
+}
+
+.chip {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 0.2rem 0.55rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.chip:hover {
+  border-color: var(--accent);
+  color: var(--fg);
+  background: var(--glow);
+}
+
+/* ── Status / errors ── */
+.status-bar {
+  max-width: 700px;
+  margin: 0 auto 1.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--muted);
+  min-height: 1.2em;
+}
+
+.error-msg {
+  color: #e05050;
+  border: 1px solid rgba(192,57,43,0.4);
+  background: rgba(192,57,43,0.08);
+  border-radius: 3px;
+  padding: 0.5rem 0.8rem;
+}
+
+/* ── Results header ── */
+.results-header {
+  max-width: 700px;
+  margin: 0 auto 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.results-meta {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.results-meta strong { color: var(--accent); }
+
+.export-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  padding: 0.25rem 0.6rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.export-btn:hover { border-color: var(--muted); color: var(--fg); }
+
+/* ── Post cards ── */
+.feed {
+  max-width: 700px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.post-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid transparent;
+  padding: 1rem 1.1rem;
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  gap: 0 1rem;
+  transition: border-color 0.15s, background 0.15s;
+  cursor: default;
+}
+.post-card:hover {
+  background: #160f11;
+  border-left-color: var(--accent);
+}
+.post-card:first-child { border-radius: 3px 3px 0 0; }
+.post-card:last-child  { border-radius: 0 0 3px 3px; }
+.post-card:only-child  { border-radius: 3px; }
+
+.post-rank {
+  grid-row: span 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 2px;
+  gap: 4px;
+}
+
+.rank-num {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--muted);
+  opacity: 0.5;
+}
+
+.score {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: bold;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  line-height: 1.1;
+}
+.score-label {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.post-title a {
+  color: var(--fg);
+  text-decoration: none;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.35;
+  display: block;
+  transition: color 0.15s;
+}
+.post-title a:hover { color: #f0e0e2; }
+
+.nsfw-tag {
+  display: inline-block;
+  font-size: 0.62rem;
+  background: rgba(192,57,43,0.25);
+  border: 1px solid var(--accent2);
+  color: #e08080;
+  border-radius: 2px;
+  padding: 0 4px;
+  vertical-align: middle;
+  margin-left: 6px;
+  line-height: 1.6;
+}
+
+.post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  margin-top: 0.35rem;
+}
+
+.post-meta .sub { color: var(--gold); opacity: 0.8; }
+.post-meta .comments { color: var(--muted); }
+
+.flair {
+  background: rgba(201,168,76,0.12);
+  border: 1px solid rgba(201,168,76,0.25);
+  border-radius: 2px;
+  color: var(--gold);
+  font-size: 0.65rem;
+  padding: 0 5px;
+  line-height: 1.7;
+}
+
+/* ── Empty state ── */
+.empty {
+  max-width: 700px;
+  margin: 4rem auto;
+  text-align: center;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  letter-spacing: 0.05em;
+}
+.empty-skull {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 1rem;
+  opacity: 0.3;
+}
+
+/* ── Loading shimmer ── */
+@keyframes shimmer {
+  0%   { opacity: 0.3; }
+  50%  { opacity: 0.6; }
+  100% { opacity: 0.3; }
+}
+.loading-line {
+  background: var(--border);
+  border-radius: 2px;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-line { animation: none; }
+  .post-card, .btn, .chip { transition: none; }
+}
+</style>
+
+<header>
+  <div>
+    <span class="skull">💀</span>
+    <span class="skull">🕯️</span>
+    <span class="skull">💀</span>
+  </div>
+  <h1>Creepy Story Finder</h1>
+  <p class="subtitle">Reddit's darkest tales — harvested for your stream</p>
+</header>
+
+<div class="presets">
+  <span class="preset-label">Quick pick:</span>
+  <button class="chip" onclick="setAndFetch('nosleep')">r/nosleep</button>
+  <button class="chip" onclick="setAndFetch('LetsNotMeet')">r/LetsNotMeet</button>
+  <button class="chip" onclick="setAndFetch('creepypasta')">r/creepypasta</button>
+  <button class="chip" onclick="setAndFetch('Thetruthishere')">r/Thetruthishere</button>
+  <button class="chip" onclick="setAndFetch('Paranormal')">r/Paranormal</button>
+  <button class="chip" onclick="setAndFetch('glitch_in_the_matrix')">r/glitch_in_the_matrix</button>
+</div>
+
+<div class="controls">
+  <div class="field">
+    <label for="sub-input">Subreddit</label>
+    <input id="sub-input" placeholder="nosleep, LetsNotMeet…" value="nosleep">
+  </div>
+  <div class="field" style="flex:0 1 130px">
+    <label for="time-select">Timeframe</label>
+    <select id="time-select">
+      <option value="week">This week</option>
+      <option value="month" selected>This month</option>
+      <option value="year">This year</option>
+      <option value="all">All time</option>
+      <option value="day">Today</option>
+    </select>
+  </div>
+  <div class="field" style="flex:0 1 110px">
+    <label for="limit-select">Results</label>
+    <select id="limit-select">
+      <option value="10">10 posts</option>
+      <option value="25" selected>25 posts</option>
+      <option value="50">50 posts</option>
+      <option value="100">100 posts</option>
+    </select>
+  </div>
+  <button class="btn" id="fetch-btn" onclick="fetchPosts()">Summon</button>
+</div>
+
+<div class="status-bar" id="status-bar"></div>
+
+<div id="results-header" hidden class="results-header">
+  <div class="results-meta" id="results-meta"></div>
+  <button class="export-btn" onclick="exportCSV()">↓ Export CSV</button>
+</div>
+
+<div class="feed" id="feed">
+  <div class="empty">
+    <span class="empty-skull">🕸️</span>
+    Choose a subreddit and summon the stories
+  </div>
+</div>
+
+<script>
+  let currentPosts = [];
+  let currentMeta  = null;
+
+  function fmt(n) {
+    if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+    return String(n);
+  }
+
+  function fmtDate(utc) {
+    return new Date(utc * 1000).toLocaleDateString('en-NZ', {
+      day: 'numeric', month: 'short', year: 'numeric'
+    });
+  }
+
+  function setAndFetch(sub) {
+    document.getElementById('sub-input').value = sub;
+    fetchPosts();
+  }
+
+  async function fetchPosts() {
+    const sub   = document.getElementById('sub-input').value.trim().replace(/^r\//, '');
+    const time  = document.getElementById('time-select').value;
+    const limit = document.getElementById('limit-select').value;
+    if (!sub) return;
+
+    const btn    = document.getElementById('fetch-btn');
+    const status = document.getElementById('status-bar');
+    const feed   = document.getElementById('feed');
+
+    btn.disabled = true;
+    btn.textContent = 'Summoning…';
+    status.innerHTML = '';
+    document.getElementById('results-header').hidden = true;
+
+    // Show skeleton
+    feed.innerHTML = Array.from({length: 5}, (_, i) => `
+      <div class="post-card" style="opacity:${0.9 - i*0.12}">
+        <div class="post-rank">
+          <div class="loading-line" style="width:28px;height:12px;margin-top:4px"></div>
+          <div class="loading-line" style="width:28px;height:18px;margin-top:6px"></div>
+        </div>
+        <div>
+          <div class="loading-line" style="height:14px;width:${70+i*5}%;margin-bottom:6px"></div>
+          <div class="loading-line" style="height:14px;width:${40+i*3}%;margin-bottom:10px"></div>
+          <div class="loading-line" style="height:11px;width:55%"></div>
+        </div>
+      </div>
+    `).join('');
+
+    try {
+      const res = await fetch(
+        `https://www.reddit.com/r/${sub}/top.json?t=${time}&limit=${limit}&raw_json=1`
+      );
+      if (!res.ok) {
+        if (res.status === 404) throw new Error(`r/${sub} doesn't exist`);
+        if (res.status === 403) throw new Error(`r/${sub} is private or banned`);
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      currentPosts = data.data.children.map(c => c.data);
+      currentMeta  = { sub, time, limit };
+      renderPosts();
+    } catch (e) {
+      feed.innerHTML = `<div class="empty"><span class="empty-skull">⚰️</span></div>`;
+      status.innerHTML = `<span class="error-msg">⚠ ${e.message}</span>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Summon';
+    }
+  }
+
+  function renderPosts() {
+    const feed = document.getElementById('feed');
+    const hdr  = document.getElementById('results-header');
+    const meta = document.getElementById('results-meta');
+
+    if (!currentPosts.length) {
+      feed.innerHTML = '<div class="empty"><span class="empty-skull">🦇</span>No posts found for this timeframe</div>';
+      return;
+    }
+
+    meta.innerHTML = `<strong>${currentPosts.length}</strong> stories from <strong>r/${currentMeta.sub}</strong> — ${currentMeta.time}`;
+    hdr.hidden = false;
+
+    feed.innerHTML = currentPosts.map((p, i) => {
+      const flairHtml = p.link_flair_text
+        ? `<span class="flair">${escHtml(p.link_flair_text)}</span>`
+        : '';
+      const nsfwHtml = p.over_18 ? '<span class="nsfw-tag">18+</span>' : '';
+      const url = `https://reddit.com${p.permalink}`;
+
+      return `
+        <div class="post-card">
+          <div class="post-rank">
+            <span class="rank-num">#${i + 1}</span>
+            <span class="score">${fmt(p.score)}</span>
+            <span class="score-label">pts</span>
+          </div>
+          <div>
+            <div class="post-title">
+              <a href="${url}" target="_blank" rel="noopener noreferrer">
+                ${escHtml(p.title)}${nsfwHtml}
+              </a>
+            </div>
+            <div class="post-meta">
+              <span class="sub">r/${escHtml(p.subreddit)}</span>
+              <span>u/${escHtml(p.author)}</span>
+              <span class="comments">💬 ${fmt(p.num_comments)}</span>
+              <span>${fmtDate(p.created_utc)}</span>
+              ${flairHtml}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function exportCSV() {
+    if (!currentPosts.length) return;
+    const header = ['Rank','Title','Subreddit','Author','Score','Comments','Date','URL'];
+    const rows = currentPosts.map((p, i) => [
+      i + 1,
+      `"${p.title.replace(/"/g, '""')}"`,
+      `r/${p.subreddit}`,
+      p.author,
+      p.score,
+      p.num_comments,
+      fmtDate(p.created_utc),
+      `https://reddit.com${p.permalink}`
+    ]);
+    const csv = [header, ...rows].map(r => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = Object.assign(document.createElement('a'), {
+      href: URL.createObjectURL(blob),
+      download: `creepy_stories_r${currentMeta.sub}_${currentMeta.time}.csv`
+    });
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  // Fetch on Enter key
+  document.getElementById('sub-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') fetchPosts();
+  });
+
+  // Auto-fetch on load
+  fetchPosts();
+</script>
