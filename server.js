@@ -20,14 +20,31 @@ function fetchReddit(sub, t, limit) {
     const redditUrl = `https://www.reddit.com/r/${sub}/top.json?t=${t}&limit=${limit}&raw_json=1`;
     const opts = {
       headers: {
-        'User-Agent': 'CreepyStoryFinder/1.0 (halloween stream tool)',
-        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-US,en;q=0.9',
       }
     };
     https.get(redditUrl, opts, res => {
       let body = '';
       res.on('data', chunk => body += chunk);
       res.on('end', () => {
+        // Follow redirects
+        if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307 || res.statusCode === 308) {
+          const loc = res.headers.location;
+          if (loc) {
+            https.get(loc, opts, res2 => {
+              let b2 = '';
+              res2.on('data', c => b2 += c);
+              res2.on('end', () => {
+                try { resolve(JSON.parse(b2)); } catch(e) { reject({ status: 500, error: 'Invalid JSON from Reddit' }); }
+              });
+            }).on('error', err => reject({ status: 502, error: err.message }));
+          } else {
+            reject({ status: 502, error: 'Reddit redirect with no location' });
+          }
+          return;
+        }
         if (res.statusCode === 404) return reject({ status: 404, error: `r/${sub} doesn't exist` });
         if (res.statusCode === 403) return reject({ status: 403, error: `r/${sub} is private or banned` });
         if (res.statusCode !== 200) return reject({ status: res.statusCode, error: `Reddit returned HTTP ${res.statusCode}` });
