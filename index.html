@@ -501,16 +501,32 @@ select {
       </div>
     `).join('');
 
-    try {
-      const res = await fetch(
-        `https://www.reddit.com/r/${sub}/top.json?t=${time}&limit=${limit}&raw_json=1`
-      );
-      if (!res.ok) {
-        if (res.status === 404) throw new Error(`r/${sub} doesn't exist`);
-        if (res.status === 403) throw new Error(`r/${sub} is private or banned`);
-        throw new Error(`HTTP ${res.status}`);
+    const redditUrl = `https://www.reddit.com/r/${sub}/top.json?t=${time}&limit=${limit}&raw_json=1`;
+    const proxies = [
+      u => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
+      u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+      u => u  // direct fallback
+    ];
+
+    let data = null;
+    let lastErr = null;
+    for (const proxy of proxies) {
+      try {
+        const res = await fetch(proxy(redditUrl));
+        if (!res.ok) {
+          if (res.status === 404) throw new Error(`r/${sub} doesn't exist`);
+          if (res.status === 403) throw new Error(`r/${sub} is private or banned`);
+          throw new Error(`HTTP ${res.status}`);
+        }
+        data = await res.json();
+        break;
+      } catch (e) {
+        lastErr = e;
       }
-      const data = await res.json();
+    }
+    try {
+      if (!data) throw lastErr || new Error('All proxies failed');
+
       currentPosts = data.data.children.map(c => c.data);
       currentMeta  = { sub, time, limit };
       renderPosts();
