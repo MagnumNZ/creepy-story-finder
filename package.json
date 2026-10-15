@@ -1,0 +1,12 @@
+{
+  "name": "creepy-story-finder",
+  "version": "1.0.0",
+  "description": "Halloween Reddit story scraper",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
